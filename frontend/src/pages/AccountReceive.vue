@@ -188,12 +188,12 @@ function useScan() {
         filterUserAnnouncements(
           spendingPubKey,
           viewingPrivKey,
-          allAnnouncements,
+          announcementsBatch,
           (percent) => {
             scanPercentage.value = Math.floor(percent);
           },
           (filteredAnnouncements) => {
-            userAnnouncements.value = filteredAnnouncements.sort(function (a, b) {
+            userAnnouncements.value = [...userAnnouncements.value, ...filteredAnnouncements].sort(function (a, b) {
               return parseInt(a.timestamp) - parseInt(b.timestamp);
             });
             scanStatus.value = 'complete';
@@ -204,7 +204,7 @@ function useScan() {
       // scanPercentage.value = 0;
     } catch (e) {
       scanStatus.value = 'waiting'; // reset to the default state because we were unable to fetch announcements
-      console.log('there was an erro');
+      console.log('there was an error');
       throw e;
     }
   }
