@@ -177,33 +177,34 @@ function useScan() {
     // Fetch announcements
     const overrides = { startBlock: startBlockLocal.value, endBlock: endBlockLocal.value };
     let allAnnouncements: AnnouncementDetail[] = [];
+    // Scan for funds
+    // scanStatus.value = 'scanning';
+    const spendingPubKey = chooseKey(spendingKeyPair.value?.publicKeyHex);
+    const viewingPrivKey = chooseKey(viewingKeyPair.value?.privateKeyHex);
     try {
       for await (const announcementsBatch of umbra.value.fetchAllAnnouncements(overrides)) {
         allAnnouncements = [...allAnnouncements, ...announcementsBatch];
+
+        filterUserAnnouncements(
+          spendingPubKey,
+          viewingPrivKey,
+          allAnnouncements,
+          (percent) => {
+            scanPercentage.value = Math.floor(percent);
+          },
+          (filteredAnnouncements) => {
+            userAnnouncements.value = filteredAnnouncements.sort(function (a, b) {
+              return parseInt(a.timestamp) - parseInt(b.timestamp);
+            });
+            scanStatus.value = 'complete';
+          }
+        );
       }
 
-      // Scan for funds
-      scanStatus.value = 'scanning';
-      const spendingPubKey = chooseKey(spendingKeyPair.value?.publicKeyHex);
-      const viewingPrivKey = chooseKey(viewingKeyPair.value?.privateKeyHex);
-
-      scanPercentage.value = 0;
-      filterUserAnnouncements(
-        spendingPubKey,
-        viewingPrivKey,
-        allAnnouncements,
-        (percent) => {
-          scanPercentage.value = Math.floor(percent);
-        },
-        (filteredAnnouncements) => {
-          userAnnouncements.value = filteredAnnouncements.sort(function (a, b) {
-            return parseInt(a.timestamp) - parseInt(b.timestamp);
-          });
-          scanStatus.value = 'complete';
-        }
-      );
+      // scanPercentage.value = 0;
     } catch (e) {
       scanStatus.value = 'waiting'; // reset to the default state because we were unable to fetch announcements
+      console.log('there was an erro');
       throw e;
     }
   }
