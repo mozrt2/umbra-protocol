@@ -388,8 +388,6 @@ export class Umbra {
         return this.fetchAllAnnouncementFromLogs(startBlock, endBlock);
       }
     }
-
-    return this.fetchAllAnnouncementFromLogs(startBlock, endBlock);
   }
 
   /**
@@ -493,10 +491,8 @@ export class Umbra {
    * @param overrides Override the start and end block used for scanning
    */
   async scan(spendingPublicKey: string, viewingPrivateKey: string, overrides: ScanOverrides = {}) {
-    const announcements = await this.fetchAllAnnouncements(overrides);
-
-    let userAnnouncements: UserAnnouncement[] = [];
-    for await (const ann of announcements) {
+    const userAnnouncements: UserAnnouncement[] = [];
+    for await (const ann of this.fetchAllAnnouncements(overrides)) {
       for (const announcement of ann) {
         const { amount, from, receiver, timestamp, token: tokenAddr, txHash } = announcement;
         const { isForUser, randomNumber } = Umbra.isAnnouncementForUser(
@@ -711,13 +707,11 @@ async function* recursiveGraphFetch(
   overrides?: GraphFilterOverride
 ): AsyncGenerator<any[]> {
   // retrieve the last ID we collected to use as the starting point for this query
-  const fromId = before.length ? (before[before.length - 1].id as string | number) : false;
+  const fromTimestamp = before.length ? (before[before.length - 1].timestamp as string | number) : false;
   let startBlockFilter = '';
   let endBlockFilter = '';
   const startBlock = overrides?.startBlock ? overrides.startBlock.toString() : '';
   const endBlock = overrides?.endBlock ? overrides?.endBlock.toString() : '';
-
-  console.log('startBlock in recursiveGraphFetch is', startBlock);
 
   if (startBlock) {
     startBlockFilter = `block_gte: "${startBlock}",`;
@@ -733,8 +727,10 @@ async function* recursiveGraphFetch(
     body: JSON.stringify({
       query: query(`
         first: 1000,
+        orderBy: timestamp,
+        orderDirection: desc,
         where: {
-          ${fromId ? `id_gt: "${fromId}",` : ''}
+          ${fromTimestamp ? `timestamp_lt: "${fromTimestamp}",` : ''}
           ${startBlockFilter}
           ${endBlockFilter}
         }

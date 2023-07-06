@@ -73,8 +73,8 @@
       </div>
 
       <!-- Scanning complete -->
-      <div v-else-if="scanStatus === 'complete'" class="text-center">
-        <account-receive-table :announcements="userAnnouncements" @reset="setFormStatus('waiting')" />
+      <div class="text-center">
+        <account-receive-table :announcements="userAnnouncements" :key="tableKey" @reset="setFormStatus('waiting')" />
       </div>
     </div>
   </q-page>
@@ -83,7 +83,8 @@
 <script lang="ts">
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { QForm } from 'quasar';
-import { UserAnnouncement, KeyPair, AnnouncementDetail, utils } from '@umbracash/umbra-js';
+import { UserAnnouncement, KeyPair, utils } from '@umbracash/umbra-js';
+// import { UserAnnouncement, KeyPair, AnnouncementDetail, utils } from '@umbracash/umbra-js';
 import { BigNumber, computeAddress, isHexString } from 'src/utils/ethers';
 import useSettingsStore from 'src/store/settings';
 import useWallet from 'src/store/wallet';
@@ -97,6 +98,7 @@ function useScan() {
   const scanStatus = ref<ScanStatus>('waiting');
   const scanPercentage = ref<number>(0);
   const userAnnouncements = ref<UserAnnouncement[]>([]);
+  const tableKey = ref(0);
 
   // Start and end blocks for advanced mode settings
   const { advancedMode, startBlock, endBlock, setScanBlocks, setScanPrivateKey, scanPrivateKey, resetScanSettings } =
@@ -176,15 +178,15 @@ function useScan() {
 
     // Fetch announcements
     const overrides = { startBlock: startBlockLocal.value, endBlock: endBlockLocal.value };
-    let allAnnouncements: AnnouncementDetail[] = [];
+    // let allAnnouncements: AnnouncementDetail[] = [];
     // Scan for funds
-    // scanStatus.value = 'scanning';
+    scanStatus.value = 'scanning';
     const spendingPubKey = chooseKey(spendingKeyPair.value?.publicKeyHex);
     const viewingPrivKey = chooseKey(viewingKeyPair.value?.privateKeyHex);
     try {
-      for await (const announcementsBatch of umbra.value.fetchAllAnnouncements(overrides)) {
-        allAnnouncements = [...allAnnouncements, ...announcementsBatch];
+      // let processedAnnouncementsCount = 0; // Track the count of processed announcements
 
+      for await (const announcementsBatch of umbra.value.fetchAllAnnouncements(overrides)) {
         filterUserAnnouncements(
           spendingPubKey,
           viewingPrivKey,
@@ -193,18 +195,26 @@ function useScan() {
             scanPercentage.value = Math.floor(percent);
           },
           (filteredAnnouncements) => {
+            const userAnnouncementsCount = userAnnouncements.value.length;
             userAnnouncements.value = [...userAnnouncements.value, ...filteredAnnouncements].sort(function (a, b) {
               return parseInt(a.timestamp) - parseInt(b.timestamp);
             });
-            scanStatus.value = 'complete';
+            if (userAnnouncementsCount != userAnnouncements.value.length) {
+              tableKey.value += 1;
+            }
+            // processedAnnouncementsCount += announcementsBatch.length; // Increment count
+            // Check if all announcements have been processed
+            // if (processedAnnouncementsCount === allAnnouncements.length) {
+            // scanStatus.value = 'complete';
+            // }
           }
         );
+        scanStatus.value = 'complete';
       }
 
       // scanPercentage.value = 0;
     } catch (e) {
       scanStatus.value = 'waiting'; // reset to the default state because we were unable to fetch announcements
-      console.log('there was an error');
       throw e;
     }
   }
@@ -239,6 +249,7 @@ function useScan() {
     startBlockLocal,
     userAddress,
     userAnnouncements,
+    tableKey,
   };
 }
 
